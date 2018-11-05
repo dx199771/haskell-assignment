@@ -38,6 +38,66 @@ module EightOff where
         |p==King = True
         |otherwise = False
 
+    shuffle ::Int->Deck
+    shuffle s= map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen s)::[Int]))))
+
+    eODeal :: Deck ->EOBoard 
+    eODeal a = ([],[(take 6 a),
+        (take 6 (drop 6 a)),
+        (take 6 (drop 12 a)),
+        (take 6 (drop 18 a)),
+        (take 6 (drop 24 a)),
+        (take 6 (drop 30 a)),
+        (take 6 (drop 36 a)),
+        (take 6 (drop 42 a))],
+        take 4 (drop 48 a))
+
+    toFoundations::EOBoard -> EOBoard
+    toFoundations b
+        |checkReserve(checkColomns(checkReserveA(checkColomnsA b)))/=b
+        =checkReserve(checkColomns(checkReserveA(checkColomnsA b)))
+        |otherwise = b
+
+    checkReserveA::EOBoard->EOBoard
+    checkReserveA (f,c,(r@(hr:tr)))
+        |null(filter (\n->(isAce n)) r)= (f,c,r)
+        |otherwise = (f++(filter (\n->(isAce n)) r),c,(filter (\n->(isAce n==False)) r))
+
+    checkColomnsA::EOBoard ->EOBoard
+    checkColomnsA (f,(c@(hc:tc)),r)
+        |null (filter (\n->(isAce n)) allh) = (f,c,r)
+        |otherwise = ((f++(filter (\n->(isAce n)) allh)),removeA c,r)
+        where  allh = map head c
+    removeA::Columns->Columns
+    removeA []=[]
+    removeA (col@(hcol:tcol))
+        |isAce (head hcol)= tail hcol:removeA tcol
+        |otherwise = (hcol:removeA tcol)
+    
+    checkReserve::EOBoard->EOBoard
+    checkReserve (f,c,r@(hr:tr))
+        |null tr = (f,c,r)
+        |elem hr allf = checkReserve(insertCard hr f,c,tr)
+        |elem hr allf == False = addN hr (checkReserve(f,c,tr))
+        |otherwise = (f,c,r)
+        where  allf = map sCard f
+
+    addN :: Card->EOBoard->EOBoard
+    addN card (f,c,r)=(f,c,card:r)
+    checkColomns::EOBoard->EOBoard
+    checkColomns (f,c@(hc:tc),r)
+        |null tc = (f,c,r)
+        |elem (head hc) allf = checkColomns(insertCard (head hc) f,(tail hc):tc,r)
+        |elem (head hc) allf == False = addC hc (checkColomns(f,tc,r))
+        |otherwise=(f,c,r)
+        where  allf = map sCard f
+    addC :: [Card]->EOBoard->EOBoard
+    addC card (f,c,r) = (f,card:c,r)
+    insertCard::Card->Foundations->Foundations
+    insertCard c f1@(hf:tf)
+        |pCard c ==hf = c:tf
+        |otherwise = hf: insertCard c tf
+
     merge :: (a->a->Bool)->[a]->[a]->[a]
     merge compfn [] lis2 =lis2
     merge compfn lis1 [] = lis1
@@ -56,57 +116,3 @@ module EightOff where
     mergesortpass _ [] = []
     mergesortpass _ [l] =[l]
     mergesortpass compfn(lis1:(lis2:rest)) = (merge compfn lis1 lis2): mergesortpass compfn rest
-
-    shuffle ::Deck 
-    shuffle = map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen 42)::[Int]))))
-
-    eODeal :: Deck ->EOBoard 
-    eODeal a = ([],[(take 6 a),
-        (take 6 (drop 6 a)),
-        (take 6 (drop 12 a)),
-        (take 6 (drop 18 a)),
-        (take 6 (drop 24 a)),
-        (take 6 (drop 30 a)),
-        (take 6 (drop 36 a)),
-        (take 6 (drop 42 a))],
-        take 4 (drop 48 a))
-
-    {--toFoundations::EOBoard -> EOBoard
-    toFoundations (f,c,r)
-         |null (reserveItemA r) = (putReserveAToFoundations (reserveItemA c) f),c,r
-         |otherwise = (putReserveAToFoundations (reserveItemA r) f)
-        --where ((p,s):rpl)=r
-
-    putReserveAToFoundations::[Card]->Foundations->Foundations
-    putReserveAToFoundations c@(h:t) f
-        |length c ==1 = h:f
-        |otherwise = h:putReserveAToFoundations t f
-
-    --return all Ace in Reserve
-    reserveItemA::[Card]->[Card]
-    reserveItemA r
-        |null r = []
-        |p==Ace = [(p,s)]++reserveItemA rpl
-        |otherwise = reserveItemA rpl
-        where ((p,s):rpl)=r
---}
-    toFoundations::EOBoard -> EOBoard
-    toFoundations b
-        |checkReserveA b==b= checkColomnsA b
-        |checkColomnsA b==b= checkReserve b
-		|checkReserve b==b=
-    checkReserveA::EOBoard->EOBoard
-    checkReserveA (f,c,(r@(hr:tr)))
-        |null(filter (\n->(isAce n)) r)= (f,c,r)
-        |otherwise = (f++(filter (\n->(isAce n)) r),c,(filter (\n->(isAce n==False)) r))
-
-    checkColomnsA::EOBoard ->EOBoard
-    checkColomnsA (f,(c@(hc:tc)),r)
-        |null (filter (\n->(isAce n)) hc) = (f,c,r)
-        |otherwise = ((f++(filter (\n->(isAce n)) allh)),removeA c,r)
-        where  allh =map head c
-    removeA::Columns->Columns
-    removeA []=[]
-    removeA (col@(hcol:tcol))
-        |isAce (head hcol)= tail hcol:removeA tcol
-        |otherwise = (hcol:removeA tcol)
