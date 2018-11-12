@@ -5,7 +5,7 @@ module EightOff where
 {- 8-Off Solitaire Part 1
   NAMING CONVENTIONS
   f,c,r Foundations,Colomns,Reserves
-
+  p,s Pip,Suit
 
 -}
 
@@ -84,30 +84,28 @@ module EightOff where
     (take 6 (drop 42 a))],
     take 4 (drop 48 a))
 
-  {--toFoundations::EOBoard -> EOBoard
+  toFoundations::EOBoard -> EOBoard
   toFoundations b
     |checkReserve b/=b
     =toFoundations(checkReserve b)
     |otherwise = b
-  --}
-  --filter(\n->(elem (head c) common))c      
+
   checkReserve::EOBoard->EOBoard
   checkReserve (f,c,r)
-    |otherwise=((map updateFoundation (common++common2) f),(removeHead common c),(filter(\n -> (elem n allf) == False) r))
+    |otherwise=
+    (map (\n -> (updateFoundation n f)) allf++allc,
+    map (\x -> filter(\n -> (elem n common) == False) x ) c,
+    (filter(\n -> (elem n allf) == False) r))
     where allf = map sCard f
           allc = map head c
           common = filter(\n -> (elem n allf)) allc
           common2 = filter(\n -> (elem n allf)) r 
-  removeHead::[Card]->Columns->Columns
-  removeHead [] _ = []
-  removeHead c@(h:t) (h1:t1)
-    |h==head h1 = tail h1:removeHead t t1
-    |otherwise = h1:removeHead c t1
+
   updateFoundation::Card->Foundations->Foundations
   updateFoundation [] _ = []
   updateFoundation _ [] = []
   updateFoundation c f@(fh:ft)
-    |pCard c == fh =  c:ft
+    |bgpCard c == fh = c:ft
     |otherwise = fh:updateFoundation c ft
 
   --merge sort code from MOLE given by Phil
