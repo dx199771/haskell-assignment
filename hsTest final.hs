@@ -86,6 +86,7 @@ module EightOff where
     take 4 (drop 48 a))
 
   toFoundations::EOBoard -> EOBoard
+<<<<<<< HEAD
   toFoundations eob@(f,c,r)
     |updatedBoard/=eob = toFoundations(updatedBoard)
     |otherwise = eob
@@ -100,6 +101,30 @@ module EightOff where
     |pCard h /= fh = updateFoundation c ((last f):(init f))
     where (h:t)=c
           (fh:ft)=f
+=======
+  toFoundations b
+    |checkReserve b/=b
+    =toFoundations(checkReserve b)
+    |otherwise = b
+
+  checkReserve::EOBoard->EOBoard
+  checkReserve (f,c,r)
+    |otherwise=
+    (map (\n -> (updateFoundation n f)) allf++allc,
+    map (\x -> filter(\n -> (elem n common) == False) x ) c,
+    (filter(\n -> (elem n allf) == False) r))
+    where allf = map sCard f
+          allc = map head c
+          common = filter(\n -> (elem n allf)) allc
+          common2 = filter(\n -> (elem n allf)) r 
+
+  updateFoundation::Card->Foundations->Foundations
+  updateFoundation [] _ = []
+  updateFoundation _ [] = []
+  updateFoundation c f@(fh:ft)
+    |bgpCard c == fh = c:ft
+    |otherwise = fh:updateFoundation c ft
+>>>>>>> 43aa9c452cdde63831dac4daced237c19567849c
 
   --merge sort code from MOLE given by Phil
   --merge
