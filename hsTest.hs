@@ -5,7 +5,7 @@ module EightOff where
 {- 8-Off Solitaire Part 1
   NAMING CONVENTIONS
   f,c,r Foundations,Colomns,Reserves
-
+  p,s Pip,Suit
 
 -}
 
@@ -29,7 +29,8 @@ module EightOff where
   data Suit = Spade|Heart|Club|Diamond
         deriving (Eq,Ord,Show,Enum)
   allS = enumFrom Spade
-  
+  --data Maybe a = Noting|Just a
+                 --deriving (Eq,Ord,Read,Show)
   --pack
   --no arguements, returns a list of all the cards
   --all the cards mean a list of 52 cards
@@ -39,7 +40,7 @@ module EightOff where
   --sCard
   --takes a Card, returns the successor card
   --
-  sCard :: Card-> Card
+  sCard :: Card->Card
   sCard (p,s)
     |otherwise = (succ p,s)
 
@@ -84,39 +85,27 @@ module EightOff where
     (take 6 (drop 42 a))],
     take 4 (drop 48 a))
 
-  {--toFoundations::EOBoard -> EOBoard
-  toFoundations b
-    |checkReserve b/=b
-    =toFoundations(checkReserve b)
-    |otherwise = b
-  --}
-  --filter(\n->(elem (head c) common))c      
-  checkReserve::EOBoard->EOBoard
-  checkReserve (f,c,r)
-    |otherwise=((map updateFoundation (common++common2) f),(removeHead common c),(filter(\n -> (elem n allf) == False) r))
-    where allf = map sCard f
-          allc = map head c
-          common = filter(\n -> (elem n allf)) allc
-          common2 = filter(\n -> (elem n allf)) r 
-  removeHead::[Card]->Columns->Columns
-  removeHead [] _ = []
-  removeHead c@(h:t) (h1:t1)
-    |h==head h1 = tail h1:removeHead t t1
-    |otherwise = h1:removeHead c t1
-  updateFoundation::Card->Foundations->Foundations
-  updateFoundation [] _ = []
-  updateFoundation _ [] = []
-  updateFoundation c f@(fh:ft)
-    |pCard c == fh =  c:ft
-    |otherwise = fh:updateFoundation c ft
+  toFoundations::EOBoard -> EOBoard
+  toFoundations eob@(f,c,r)
+    |updatedBoard/=eob = toFoundations(updatedBoard)
+    |otherwise = eob
+    where allf = map sCard (filter(\n ->(isKing n== False))f)
+          common = [b|b<-map head (filter (\n-> null n /=True) c),elem b allf]
+          common2 = filter(\n -> (elem n allf)) r
+          updatedBoard = (updateFoundation (common++common2) f,map (\x -> filter(\n -> (elem n common) == False) x) c ,filter(\n -> (elem n allf) == False) r)      
+  updateFoundation::[Card]->Foundations->Foundations
+  updateFoundation c f
+    |null c = f
+    |pCard h == fh = (head c):updateFoundation t ft
+    |pCard h /= fh = updateFoundation c ((last f):(init f))
+    where (h:t)=c
+          (fh:ft)=f
 
   --merge sort code from MOLE given by Phil
   --merge
   
   merge :: Ord a=> (a->a -> Bool)->[a]->[a] -> [a]
-  
   merge _ [] lis2 = lis2
-  
   merge _ lis1 [] = lis1
   merge compfn lis1 lis2 
     | compfn h1 h2 = (h1:merge compfn t1 lis2)

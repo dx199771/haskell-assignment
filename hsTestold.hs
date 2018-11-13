@@ -22,7 +22,7 @@ module EightOff where
 
   type Reserves  = [Card]
 
-  data Pip = Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Jack|Queen|King
+  data Pip = Empty|Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Jack|Queen|King
          deriving (Eq,Ord,Show,Enum)
   allP = enumFrom Ace
 
@@ -73,7 +73,8 @@ module EightOff where
   shuffle s= map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen s)::[Int]))))
 
   eODeal :: Deck ->EOBoard 
-  eODeal a = ([],[(take 6 a),
+  eODeal a = ([(Empty,Spade),(Empty,Heart),(Empty,Club),(Empty,Diamond)],
+    [(take 6 a),
     (take 6 (drop 6 a)),
     (take 6 (drop 12 a)),
     (take 6 (drop 18 a)),
@@ -83,53 +84,31 @@ module EightOff where
     (take 6 (drop 42 a))],
     take 4 (drop 48 a))
 
-  toFoundations::EOBoard -> EOBoard
+  {--toFoundations::EOBoard -> EOBoard
   toFoundations b
-    |checkReserve(checkColomns(checkA b))/=b
-    =toFoundations(checkReserve(checkColomns(checkA b)))
+    |checkReserve b/=b
+    =toFoundations(checkReserve b)
     |otherwise = b
-
-  checkA::EOBoard->EOBoard
-  checkA (f,c@(hc:tc),(r@(hr:tr)))
-    |null(filter isAce r++filter isAce allh)= (f,c,r)
-    |otherwise = (f++filter isAce r++filter isAce allh,
-                 removeA c,
-                 filter (\n->(isAce n==False)) r)
-                 where  allh = map head c
-
-  removeA::Columns->Columns
-  removeA []=[]
-  removeA (col@(hcol:tcol))
-    |isAce (head hcol)= tail hcol:removeA tcol
-    |otherwise = (hcol:removeA tcol)
-  
+  --}
+  --filter(\n->(elem (head c) common))c      
   checkReserve::EOBoard->EOBoard
-  checkReserve (f,c@(hc:tc),r@(hr:tr))
-    |null tr = (f,c,r)
-    |elem hr allf = checkReserve(insertCard hr f,c,tr)
-    |elem hr allf == False = addN hr (checkReserve(f,c,tr))
-    |otherwise = (f,c,r)
-    where  allf = map sCard f
-
-  addN :: Card->EOBoard->EOBoard
-  addN card (f,c,r)=(f,c,card:r)
-  checkColomns::EOBoard->EOBoard
-  checkColomns (f,c@(hc:tc),r)
-    |null tc = (f,c,r)
-    |elem (head hc) allf = checkColomns(insertCard (head hc) f,(tail hc):tc,r)
-    |elem (head hc) allf == False = addC hc (checkColomns(f,tc,r))
-    |otherwise=(f,c,r)
-    where  allf = map sCard f
-  addC :: [Card]->EOBoard->EOBoard
-  addC card (f,c,r) = (f,card:c,r)
-  
-  insertCard::Card->Foundations->Foundations
-  insertCard _ [] = 
-  insertCard c f1@(hf:tf)
-    |pCard c ==hf = c:tf
-    |otherwise = hf: insertCard c tf
-
-
+  checkReserve (f,c,r)
+    |otherwise=((map updateFoundation (common++common2) f),(removeHead common c),(filter(\n -> (elem n allf) == False) r))
+    where allf = map sCard f
+          allc = map head c
+          common = filter(\n -> (elem n allf)) allc
+          common2 = filter(\n -> (elem n allf)) r 
+  removeHead::[Card]->Columns->Columns
+  removeHead [] _ = []
+  removeHead c@(h:t) (h1:t1)
+    |h==head h1 = tail h1:removeHead t t1
+    |otherwise = h1:removeHead c t1
+  updateFoundation::Card->Foundations->Foundations
+  updateFoundation [] _ = []
+  updateFoundation _ [] = []
+  updateFoundation c f@(fh:ft)
+    |pCard c == fh =  c:ft
+    |otherwise = fh:updateFoundation c ft
 
   --merge sort code from MOLE given by Phil
   --merge
