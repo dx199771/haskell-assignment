@@ -1,12 +1,13 @@
+
 module EightOff where
 
   import System.Random
   import Data.List
 {- 8-Off Solitaire Part 1
   NAMING CONVENTIONS
-  f,c,r Foundations,Colomns,Reserves
-
-
+  f,c,r : Foundations,Colomns,Reserves
+  b : eOBoard
+  p,s : Pip,Suit
 -}
 
   -- data structures defination
@@ -16,7 +17,7 @@ module EightOff where
   
   type EOBoard = (Foundations ,Columns ,Reserves)
   
-  type Foundations  = [Card]
+  type Foundations  = [Card] --just need to know head of foundation,do not need [[card]]
   
   type Columns  = [[Card]]
 
@@ -24,11 +25,11 @@ module EightOff where
 
   data Pip = Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Jack|Queen|King
          deriving (Eq,Ord,Show,Enum)
-  allP = enumFrom Ace
+  allP = [(Ace)..(King)] --all data in pip
 
   data Suit = Spade|Heart|Club|Diamond
         deriving (Eq,Ord,Show,Enum)
-  allS = enumFrom Spade
+  allS = [(Spade)..(Diamond)] --all data in suit
   
   --pack
   --no arguements, returns a list of all the cards
@@ -45,14 +46,12 @@ module EightOff where
 
   --pCard
   --takes a Card, returns the predecessor card
-  --
   pCard :: Card  -> Card 
   pCard (p,s)
     |otherwise = (pred p,s)
   
   --isAce
   --takes a Card, returns true if the given card is Ace
-  --
   isAce :: Card  -> Bool
   isAce (p,s)
     |p==Ace = True
@@ -68,14 +67,16 @@ module EightOff where
 
   --shuffle
   --take an int, return a shuffled deck
-  --int as a seed
+  --int as a seed (manully input)
   shuffle ::Int->Deck
   shuffle s= map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen s)::[Int]))))
 
+  --eODeal
+  --take an deck of card, return it as a Board
   eODeal :: Deck ->EOBoard 
-  eODeal a = ([],[(take 6 a),
-    (take 6 (drop 6 a)),
-    (take 6 (drop 12 a)),
+  eODeal a = ([],[(take 6 a), --take 6 cards from 52 cards
+    (take 6 (drop 6 a)),      --drop 6 cards which just took, take 6 again in 48 cards
+    (take 6 (drop 12 a)),     --repeat
     (take 6 (drop 18 a)),
     (take 6 (drop 24 a)),
     (take 6 (drop 30 a)),
@@ -83,54 +84,63 @@ module EightOff where
     (take 6 (drop 42 a))],
     take 4 (drop 48 a))
 
+  -------------------------------------------------
+  --toFoundations
+  --take a Board and return a Board which obtained by making all the possible moves to the Foundations
   toFoundations::EOBoard -> EOBoard
-  toFoundations b
-    |checkReserve(checkColomns(checkA b))/=b
-    =toFoundations(checkReserve(checkColomns(checkA b)))
-    |otherwise = b
-
-  checkA::EOBoard->EOBoard
-  checkA (f,c@(hc:tc),(r@(hr:tr)))
-    |null(filter isAce r++filter isAce allh)= (f,c,r)
-    |otherwise = (f++filter isAce r++filter isAce allh,
-                 removeA c,
-                 filter (\n->(isAce n==False)) r)
-                 where  allh = map head c
-
-  removeA::Columns->Columns
-  removeA []=[]
-  removeA (col@(hcol:tcol))
-    |isAce (head hcol)= tail hcol:removeA tcol
-    |otherwise = (hcol:removeA tcol)
+  toFoundations b = toFoundationsA(checkReserveAce b) 
+  --check Aces in Resreve, only run once at the start of game cuz there can't be any aces in reserve after runing it
   
-  checkReserve::EOBoard->EOBoard
-  checkReserve (f,c@(hc:tc),r@(hr:tr))
-    |null tr = (f,c,r)
-    |elem hr allf = checkReserve(insertCard hr f,c,tr)
-    |elem hr allf == False = addN hr (checkReserve(f,c,tr))
-    |otherwise = (f,c,r)
-    where  allf = map sCard f
+  --toFoundationsA
+  --take a Board without Ace in resreves and return a Board which obtained by making all the possible moves to the Foundations
+  toFoundationsA::EOBoard->EOBoard
+  toFoundationsA b
+    |checkColRes(checkColomnsAce b)/=b  --if board different with initial board means there is a possible move, recuresion back
+    =toFoundations(checkColRes(checkColomnsAce b))
+    |otherwise = b --otherwise, if board does not change, means no possible move, return board
 
-  addN :: Card->EOBoard->EOBoard
-  addN card (f,c,r)=(f,c,card:r)
-  checkColomns::EOBoard->EOBoard
-  checkColomns (f,c@(hc:tc),r)
-    |null tc = (f,c,r)
-    |elem (head hc) allf = checkColomns(insertCard (head hc) f,(tail hc):tc,r)
-    |elem (head hc) allf == False = addC hc (checkColomns(f,tc,r))
-    |otherwise=(f,c,r)
-    where  allf = map sCard f
-  addC :: [Card]->EOBoard->EOBoard
-  addC card (f,c,r) = (f,card:c,r)
+  --checkColomnsAce
+  --take a board and return a board which put all aces in reserve to foundations
+  --only check reserves's Ace at the start of the game
+  checkReserveAce::EOBoard -> EOBoard
+  checkReserveAce b@(f,c,r)
+    |null (filter isAce r) = b --no aces found in reserves, nothin changed 
+    |otherwise = (filter isAce r,c,filter (not.isAce) r) -- aces found, remove them in reserve and add to foundation
+
+  --checkColomnsAce
+  --take a board, return a board which put all aces in colomns to foundations
+  checkColomnsAce::EOBoard -> EOBoard
+  checkColomnsAce b@(f,c,r)
+    |null colomnsAce = b --no aces found in heads of colomns, nothin changed
+    |otherwise = (colomnsAce++f, --add all head cards which are aces in colomns 
+                 map tail (filter (isAce.head) nonEmpty)++filter (not.isAce.head) nonEmpty , 
+                 --return tail of list wihch start of Ace and list which not start of Ace
+                 r) --aces found, add to foundation, remove them in reserve
+    where colomnsAce = filter isAce (map head nonEmpty) --all aces that in all colomns' head
+          nonEmpty = (filter (not.null) c) --filter may return empty list, this is get rid of the empty lists
   
-  insertCard::Card->Foundations->Foundations
-  insertCard _ [] = 
-  insertCard c f1@(hf:tf)
-    |pCard c ==hf = c:tf
-    |otherwise = hf: insertCard c tf
+  --checkColRes
+  --take a board and return a board which has moved all possible cards to foundations
+  --by taking all cards can make possible moves in reserve and colomns, take out them and add them in foundations
+  checkColRes::EOBoard->EOBoard
+  checkColRes b@(f,c,r) = 
+    let
+      f1 = map sCard (filter(\n -> elem n (map pCard (col++res))) f)++ filter(\n -> notElem  n (map pCard (col++res))) f
+      --f1 return card's successors which not in the col or res and 
+      --   return card's successors in the col or res
+      c1 = map (\n ->filter (\m -> notElem  m col) n) nonEmpty
+      --c1 take cards which not in the col(filter out cards can make possible move)
+      r1 = filter (\n -> notElem  n res) r
+      --r1 take cards which not in the res(filter out cards can make possible move)
+    in
+      (f1,c1,r1)
+    where succFoundations = map sCard (filter (not.isKing) f) --return all succ of Foundations except King
+          col = [n|n<- map head nonEmpty,elem n succFoundations] --all cards in colomns can move to foundations
+          res = [n|n<- r, elem n succFoundations] -- all cards in reserve can move to foundations
+          -- for doing col and res, compare each card in reserves and head colomns. take cards which is successor of foundations
+          nonEmpty = (filter (not.null) c) --filter may return empty list, this is get rid of the empty lists
 
-
-
+  -------------------------------------------------
   --merge sort code from MOLE given by Phil
   --merge
   
