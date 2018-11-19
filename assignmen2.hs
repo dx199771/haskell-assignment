@@ -39,15 +39,18 @@ module EightOff where
 
   --sCard
   --takes a Card, returns the successor card
-  --
+  --return error if given card is King
   sCard :: Card-> Card
   sCard (p,s)
+    |p==King = error "King has no successor"
     |otherwise = (succ p,s)
 
   --pCard
   --takes a Card, returns the predecessor card
+  --return error if given card is Ace
   pCard :: Card  -> Card 
   pCard (p,s)
+    |p==Ace = error "Ace has no predecessor"
     |otherwise = (pred p,s)
   
   --isAce
@@ -59,7 +62,6 @@ module EightOff where
 
   --isKing
   --takes a Card, returns true if the given card is King
-  --
   isKing :: Card  -> Bool
   isKing (p,s)
     |p==King = True
@@ -68,8 +70,15 @@ module EightOff where
   --shuffle
   --take an int, return a shuffled deck
   --int as a seed (manully input)
-  shuffle ::Int->Deck
-  shuffle s= map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen s)::[Int]))))
+  shuffle :: Int -> Deck
+  shuffle seed = 
+    let
+      rlis = take 52 (randoms (mkStdGen seed)::[Int]) --zip with pack
+      zlis = zip pack rlis --producing card pairs
+      slis = mergesort (\(_,n1)(_,n2)->n1<n2) zlis --sort list
+      cypher = map fst slis --extract card in random order
+    in
+      cypher --return shuffled cards
 
   --eODeal
   --take an deck of card, return it as a Board
@@ -85,60 +94,49 @@ module EightOff where
     take 4 (drop 48 a))
 
   -------------------------------------------------
-  --toFoundations
+  --toFoundations (checkReserveAce)
   --take a Board and return a Board which obtained by making all the possible moves to the Foundations
+  --only run once at the start of game as there can't be any aces in reserve after it
   toFoundations::EOBoard -> EOBoard
-  toFoundations b = toFoundationsA(checkReserveAce b) 
-  --check Aces in Resreve, only run once at the start of game cuz there can't be any aces in reserve after runing it
+  toFoundations b@(f,c,r)
+    |null (filter isAce r) = toFoundationsA b --no aces in reserve
+    |otherwise = toFoundationsA(filter isAce r,c,filter (not.isAce) r) --remove aces in reserve, add to foundation
   
   --toFoundationsA
   --take a Board without Ace in resreves and return a Board which obtained by making all the possible moves to the Foundations
   toFoundationsA::EOBoard->EOBoard
   toFoundationsA b
-    |checkColRes(checkColomnsAce b)/=b  --if board different with initial board means there is a possible move, recuresion back
-    =toFoundations(checkColRes(checkColomnsAce b))
-    |otherwise = b --otherwise, if board does not change, means no possible move, return board
-
-  --checkColomnsAce
-  --take a board and return a board which put all aces in reserve to foundations
-  --only check reserves's Ace at the start of the game
-  checkReserveAce::EOBoard -> EOBoard
-  checkReserveAce b@(f,c,r)
-    |null (filter isAce r) = b --no aces found in reserves, nothin changed 
-    |otherwise = (filter isAce r,c,filter (not.isAce) r) -- aces found, remove them in reserve and add to foundation
+    |checkColRes(checkColomnsAce b)/=b  --chcek until no moveable cards
+    = toFoundations(checkColRes(checkColomnsAce b))
+    |otherwise = b --otherwise, no possible move, return board
 
   --checkColomnsAce
   --take a board, return a board which put all aces in colomns to foundations
   checkColomnsAce::EOBoard -> EOBoard
   checkColomnsAce b@(f,c,r)
-    |null colomnsAce = b --no aces found in heads of colomns, nothin changed
-    |otherwise = (colomnsAce++f, --add all head cards which are aces in colomns 
-                 map tail (filter (isAce.head) nonEmpty)++filter (not.isAce.head) nonEmpty , 
-                 --return tail of list wihch start of Ace and list which not start of Ace
-                 r) --aces found, add to foundation, remove them in reserve
-    where colomnsAce = filter isAce (map head nonEmpty) --all aces that in all colomns' head
-          nonEmpty = (filter (not.null) c) --filter may return empty list, this is get rid of the empty lists
+    |null colomnsAce = b --no moveable aces 
+    |otherwise = (colomnsAce++f, --add moveable aces 
+                 map tail (filter (isAce.head) nonEmpty) ++ filter (not.isAce.head) nonEmpty , --return tail of list wihch start of Ace and list which not start of Ace
+                 r)
+    where colomnsAce = filter isAce (map head nonEmpty) --all head aces in colomns
+          nonEmpty = (filter (not.null) c) --filter may return empty list, this is remove empty lists
   
   --checkColRes
   --take a board and return a board which has moved all possible cards to foundations
-  --by taking all cards can make possible moves in reserve and colomns, take out them and add them in foundations
+  --by taking all moveable cards in reserve and colomns, take out them and add them in foundations
   checkColRes::EOBoard->EOBoard
   checkColRes b@(f,c,r) = 
     let
-      f1 = map sCard (filter(\n -> elem n (map pCard (col++res))) f)++ filter(\n -> notElem  n (map pCard (col++res))) f
-      --f1 return card's successors which not in the col or res and 
-      --   return card's successors in the col or res
-      c1 = map (\n ->filter (\m -> notElem  m col) n) nonEmpty
-      --c1 take cards which not in the col(filter out cards can make possible move)
-      r1 = filter (\n -> notElem  n res) r
-      --r1 take cards which not in the res(filter out cards can make possible move)
+      f1 = map sCard (filter(\n -> elem n (map pCard (moveableCol++moveableRes))) f) ++ filter(\n -> notElem  n (map pCard (moveableCol++moveableRes))) f --updated foundation
+      c1 = map (\n ->filter (\m -> notElem  m moveableCol) n) nonEmpty --takes out moveable cards (filter out cards can make possible move)
+      r1 = filter (\n -> notElem  n moveableRes) r --takes out moveable cards
     in
       (f1,c1,r1)
-    where succFoundations = map sCard (filter (not.isKing) f) --return all succ of Foundations except King
-          col = [n|n<- map head nonEmpty,elem n succFoundations] --all cards in colomns can move to foundations
-          res = [n|n<- r, elem n succFoundations] -- all cards in reserve can move to foundations
-          -- for doing col and res, compare each card in reserves and head colomns. take cards which is successor of foundations
-          nonEmpty = (filter (not.null) c) --filter may return empty list, this is get rid of the empty lists
+    where succFoundations = map sCard (filter (not.isKing) f) --return all successors of Foundations EXCEPT KING
+          --compare each card in reserves and head colomns. take cards which are successor of foundations
+          moveableCol = [n|n<- map head nonEmpty,elem n succFoundations] --moveable cards in colomns
+          moveableRes = [n|n<- r, elem n succFoundations]                --moveable cards in reserve
+          nonEmpty = (filter (not.null) c) --filter may return empty list, this is remove empty lists
 
   -------------------------------------------------
   --merge sort code from MOLE given by Phil

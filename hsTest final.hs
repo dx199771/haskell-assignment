@@ -70,8 +70,8 @@ module EightOff where
   --shuffle
   --take an int, return a shuffled deck
   --int as a seed
-  shuffle ::Int->Deck
-  shuffle s= map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen s)::[Int]))))
+  shuffle :: Int->Deck
+  shuffle seed = map fst (mergesort (\(_,n1)(_,n2)->n1<n2)(zip pack(take 52 (randoms (mkStdGen seed)::[Int]))))
 
   eODeal :: Deck ->EOBoard 
   eODeal a = ([(Empty,Spade),(Empty,Heart),(Empty,Club),(Empty,Diamond)],
